@@ -6,4 +6,5 @@ import "./patch/hui-state-label-badge";
 import "./patch/hui-view";
 import "./patch/hui-root";
 import "./patch/ha-more-info-dialog";
+import "./patch/dialog-entity-editor";
 import "./mod-card"
