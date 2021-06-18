@@ -1,20 +1,20 @@
 import { selectTree } from "card-tools/src/helpers";
 import { applyToElement } from "../helpers";
 
-customElements.whenDefined("ha-more-info-dialog").then(() => {
-  const HaMoreInfoDialog = customElements.get("ha-more-info-dialog");
-  if (HaMoreInfoDialog.prototype.cardmod_patched) return;
-  HaMoreInfoDialog.prototype.cardmod_patched = true;
+customElements.whenDefined("dialog-entity-editor").then(() => {
+  const HaDialogEntityEditor = customElements.get("dialog-entity-editor");
+  if (HaDialogEntityEditor.prototype.cardmod_patched) return;
+  HaDialogEntityEditor.prototype.cardmod_patched = true;
 
-  const _showDialog = HaMoreInfoDialog.prototype.showDialog;
-  HaMoreInfoDialog.prototype.showDialog = function (params) {
+  const _showDialog = HaDialogEntityEditor.prototype.showDialog;
+  HaDialogEntityEditor.prototype.showDialog = function (params) {
     _showDialog?.bind(this)(params);
 
     this.requestUpdate();
     this.updateComplete.then(async () => {
       applyToElement(
         this.shadowRoot.querySelector("ha-dialog"),
-        "more-info",
+        "dialog-entity-editor",
         "",
         { config: params },
         null,
@@ -23,10 +23,10 @@ customElements.whenDefined("ha-more-info-dialog").then(() => {
     });
   };
 
-  selectTree(document, "home-assistant$ha-more-info-dialog", false).then(
+  selectTree(document, "home-assistant$dialog-entity-editor", false).then(
     (root: any) => {
       if (root) {
-        root.showDialog = HaMoreInfoDialog.prototype.showDialog.bind(root);
+        root.showDialog = HaDialogEntityEditor.prototype.showDialog.bind(root);
         root.showDialog({ entityId: root.entityId });
       }
     }
