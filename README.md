@@ -1,300 +1,257 @@
-card-mod
-========
+# card-mod 3
+
+Allows you to apply CSS styles to various elements of the Home Assistant frontend.
+
+## Installing
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
 
-## Requires Home Assistant version 0.98 or later
+Install using HACS or [see this guide](https://github.com/thomasloven/hass-config/wiki/Lovelace-Plugins).
 
-Allows you to add css styles to any lovelace card.
+## Quick start
 
-For installation instructions [see this guide](https://github.com/thomasloven/hass-config/wiki/Lovelace-Plugins).
-
-Install `card-mod.js` as a `module`.
+- Open your card in the GUI editor
+- Click the "SHOW CODE EDITOR" button at the bottom
+- Add the following to the bottom of the code:
 
 ```yaml
-resources:
-  - url: /local/card-mod.js
-    type: module
+card_mod:
+  style: |
+    ha-card {
+      color: red;
+    }
 ```
+
+You should see the text of the card turn red as you type. \
+You should also see a little brush icon popping up near the "SHOW VISUAL EDITOR" button. This indicates that this card has card-mod code which will not be shown in the visual editor.
+
+![QuickStart](https://user-images.githubusercontent.com/1299821/109144175-23239680-7761-11eb-8c1c-1e33139aa582.png)
 
 ## Usage
-This is *not* a new card. Instead it *changes the way pretty much any other card works*.
 
-Specifically, it looks for `style:` in any cards configuration, and applies the [CSS](https://www.w3schools.com/css/) specified there to the card.
+### Styling cards
 
-The basis of almost all lovelace cards is a `ha-card` element, so that's probably where you'd want to start.
+Cards are styled by adding a `card_mod` parameter to the card configuration.
 
-Note that some cards (`conditional`, `entity-filter`, `horizontal-stack` and `vertical-stack` as well as some custom cards, like `layout-card`, `auto-entities` and `state-switch` among others) do *not* have a `ha-card` element, and `card-mod` will thus **not** work for those. There is a workaround, though. See [mod-card below](#mod-card).
+In basic form, this parameter contains a string of [CSS](https://www.w3schools.com/css/) which will be injected into the `<ha-card>` element of the card.
 
----
+> NOTE: card-mod only works on cards that contain a ha-card element. This includes almost every card which can be _seen_, but not e.g. `conditional`, `entity_filter`, `vertical-stack`, `horizontal-stack`, `grid`.
+>
+> Note, though that those cards often include other cards, which card-mod _can_ work on. \
+> See the manual for each card to see how to specify parameters for the included card(s).
 
-**Example:**\
-Change the text color of an `entities` card to red.
+The bottommost element that can be styled is the `<ha-card>`.
+
+<details><summary>Screenshot of the ha-card element in the Chrome DOM inspector</summary>
+
+![ha-card](https://user-images.githubusercontent.com/1299821/109145981-86162d00-7763-11eb-8cfa-1413ed6e80a5.png)
+
+</details>
+
+> TIP: Home Assistant themes makes use of [CSS variables](https://www.w3schools.com/css/css3_variables.asp). Those can both be set and used in card-mod - prepended by two dashes:
+>
+> ```yaml
+> card_mod:
+>   style: |
+>     ha-card {
+>       --ha-card-background: teal;
+>       color: var(--primary-color);
+>     }
+> ```
+
+### Styling entities, badges and elements
+
+In `entities` and `glance` cards, [each entity can have options](https://www.home-assistant.io/lovelace/entities/#options-for-entities). Those elements can be styled individually by adding a `card_mod` parameter to the entity configuration.
+
+For those cases, the styles are injected into a shadowRoot, and the bottommost element is thus accessed through `:host`.
+
+This also applies to view badges and elements in `picture-elements` cards.
 
 ```yaml
 type: entities
-style: |
-  ha-card {
-    color: red;
-  }
 entities:
-  - light.bed_light
-  - light.ceiling_lights
-  - light.kitchen_lights
+  - entity: light.bed_light
+    card_mod:
+      style: |
+        :host {
+          color: red;
+          }
+  - entity: light.ceiling_lights
+    card_mod:
+      style: |
+        :host {
+          color: green;
+        }
+  - entity: light.kitchen_lights
+    card_mod:
+      style: |
+        :host {
+          color: blue;
+        }
 ```
 
-![red text](https://user-images.githubusercontent.com/1299821/59151548-38a8d800-8a35-11e9-875a-64e72fd6f5a6.png)
+### Changing icons
 
----
+With card-mod installed, the `<ha-icon>` element - used e.g. by `entities`, `glance` and many more cards - will set it's icon to the value found in the CSS variable `--card-mod-icon` (if present).
 
-By using the element inspector of your browser ([chrome](https://developers.google.com/web/tools/chrome-devtools/inspect-styles/), [firefox](https://developer.mozilla.org/en-US/docs/Tools/Page_Inspector/How_to/Open_the_Inspector), [safari](https://discussions.apple.com/thread/5508711), [explorer](https://docs.microsoft.com/en-us/previous-versions/windows/internet-explorer/ie-developer/samples/gg589500(v=vs.85))) you can find out how cards are built up and what styles they are using.
-
-**Example** \
-Make a `glance` card use smallcaps and change the font size of the title
+It will also set the icon color to the value found in the CSS variable `--card-mod-icon-color` if present. This ignores entity state, but will still dim.
 
 ```yaml
-type: entities
-style: |
-  ha-card {
-    font-variant: small-caps;
-  }
-  .card-header {
-    font-size: 16px;
-  }
-entities:
-  - light.bed_light
-  - light.ceiling_lights
-  - light.kitchen_lights
+- entity: light.bed_light
+  card_mod:
+    style: |
+      :host {
+        --card-mod-icon: mdi:bed;
+      }
 ```
 
-![smallcaps](https://user-images.githubusercontent.com/1299821/59151624-9a1d7680-8a36-11e9-9b2d-598c80ff2aa1.png)
+### Templates
 
-You can also use [templating](https://www.home-assistant.io/docs/configuration/templating/) to change the styles dynamically.
+All styles may contain [jinja2 templates](https://www.home-assistant.io/docs/configuration/templating/) that will be processed by the Home Assistant backend.
 
-**Example** \
-Make an `entity-button` card green when the light is on
+card-mod also makes the following variables available for templates:
 
-```yaml
-type: entity-button
-entity: light.bed_light
-style: |
-  ha-card {
-    background: {% if is_state('light.bed_light', 'on') %} green {% endif %};
-  }
+- `config` - The entire configuration of the card, entity or badge - (`config.entity` may be of special interest)
+- `user` - The name of the currently logged in user
+- `browser` - The [browser_mod deviceID](https://github.com/thomasloven/hass-browser_mod) of the device
+- `hash` - Whatever comes after `#` in the current URL
+
+### DOM navigation
+
+Home Assistant makes extensive use of something called [shadow DOM](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_shadow_DOM). This allows for easy reuse of components (such as `ha-card` or `ha-icon`) but causes some problems when trying to apply CSS styles to things.
+
+When exploring the cards in your browsers element inspector you may have come across a line that says something like "`#shadow-root (open)`" (exactly what it says depends on your browser) and have noticed that elements inside that does not inherit the styles from outside.
+
+In order to style elements inside a shadow-root, you will need to make your `style:` a dictionary rather than a string.
+
+For each dictionary entry the key will be used to select one or several elements through a modified [`querySelector()`](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelector) function. The value of the entry will then be injected into those elements.
+
+The process is recursive, so the value may also be a dictionary. A key of "`.`" (a period) will select the current element.
+
+<details><summary>Example:</summary>
+
+Let's change the color of all third level titles (`### like this`) in a markdown card, and also change it's background.
+
+If we look at the card in the element inspector of chrome, it looks like this:
+
+![markdown-card-dom](https://user-images.githubusercontent.com/1299821/109172852-7f97ad80-7783-11eb-928d-21a41854c847.png)
+
+The `<ha-card>` element is the base, and from there we see that we need to go through one `#shadow-root` to reach the `<h3>`. That `#shadow-rot` is inside an `<ha-markdown>` element, so our selector will be:
+
+```
+ha-markdown$
 ```
 
-![templates](https://user-images.githubusercontent.com/1299821/59151667-45c6c680-8a37-11e9-819a-ae5a058ac069.png)
+which will find the first `<ha-markdown>` element and then all `#shadow-root`s inside that.
 
-Anything you add in `style:` will be put in a `<style>` tag, so you can also use things like css keyframes
+To add the background to the `<ha-card>`, we want to apply the styles to the base element directly, which has the key
 
-**Example** \
-Make a blinking button
+```
+.
+```
+
+This gives the final style:
 
 ```yaml
-type: entity-button
-entity: light.bed_light
-style: |
-  @keyframes blink {
-    50% {
-      background: red;
+card_mod:
+  style:
+    ha-markdown$: |
+      h3 {
+        color: purple;
+      }
+    .: |
+      ha-card {
+        background: teal;
+      }
+```
+
+![DOM-navigation](https://user-images.githubusercontent.com/1299821/109188638-6b5bac80-7793-11eb-90b0-205b80d8fcdb.png)
+
+</details>
+
+> NOTE: The selector chain of the queue will look for one element at a time separated by spaces or "`$`". \
+> For each step, only the first match will be selected. \
+> But for the final selector of the chain **all** matching elements will be selected.
+>
+> E.g. the following will apply styles to the `#shadow-root` of the first action button in an `alarm-panel` card:
+>
+> ```yaml
+> "#armActions mwc-button$": |
+> ```
+>
+> But the following will apply styles to the `#shadow-root` of **all** action buttons:
+>
+> ```yaml
+> "#armActions mwc-button:"
+>   $: |
+> ```
+
+<details><summary>Debugging tips</summary>
+
+The DOM navigation can be tricky to get right the first few times, but you'll eventually get the hang of it.
+
+To help you, you can use your browsers Element inspector to see which steps card-mod takes.
+
+- Open up the element inspector and find the base element (e.g. `<ha-card>`). This should contain a `<card-mod>` element whether you specified a style or not.
+- Make sure the `<card-mod>` element is selected.
+- Open up the browsers console (in chrome you can press Esc to open the console and inspector at the same time).
+- Type in `$0._input_styles` and press enter. \
+  This is the style information that step of the chain was given. If this is a string, you're at the end of the chain. If it's an object, you can move on to the next ste.
+- Type in `$0._styleChildren` and press enter. \
+  This is a set of any `<card-mod>` elements in the next step of any chain. Clicking "card-mod" in the `value:` of the set items will bring you to that `<card-mod>` element in the inspector, and you can keep on inspecting the rest of the chain.
+
+</details>
+
+### Styling cards without an `<ha-card>` element
+
+Cards that don't have a `<ha-element>` can still be styled by using the supplied `custom:mod-card` card.
+
+This is only necessary in **very few** instances, and likely to bring more problems than it solves.
+
+Most likely your card contains another card, in which case **that** is the one you should apply the styles to.
+
+Enough warnings.
+
+<details><summary>I know what I'm doing</summary>
+
+```yaml
+type: custom:mod-card
+card:
+  type: vertical-stack # for example
+  ...
+card_mod:
+  style: |
+    ha-card {
+      ...
     }
-  }
-  ha-card {
-    animation: blink 2s linear infinite;
-  }
 ```
 
-![Animated](https://user-images.githubusercontent.com/1299821/59151697-f46b0700-8a37-11e9-842e-a1088be149b4.gif)
+The mod-card will create a `<ha-card>` element - with removed background and border - and put your card inside that.
 
+</details>
 
 ## More examples
-More examples are available [here](https://github.com/thomasloven/lovelace-card-mod/blob/master/src/example.yaml).
 
-![more](https://user-images.githubusercontent.com/1299821/63809565-eb951d80-c922-11e9-8630-697befb3c95f.png)
+All my test cases are available in the `test/views` directory.
 
+You can a demo in docker by going to the `test` directory and running:
 
-## Styling entity and glance cards
-
-To make things easier, rows in `entities` cards and buttons in `glance` cards can be styled individually.
-For those, the styles will be applied to the shadowRoot of the element, so a good starting point (rather than `ha-card`) would be `:host`:
-
-```yaml
-type: entities
-entities:
-  - light.bed_light
-  - entity: light.kitchen_lights
-    style: |
-      :host {
-        color: red;
-      }
-  - entity: input_number.value
-    style: |
-      :host {
-        --paper-item-icon-color:
-          {% if states(config.entity)|int < 50 %}
-            blue
-          {% else %}
-            red
-          {% endif %}
-          ;
-      }
+```
+docker-compose up
 ```
 
-## Styling badges
+Then going to `http://localhost:8125` and logging in with username `dev` and password `dev`.
 
-Badges can be styled too, with the base style applied to `:host`.
-Note that to change the color of a badge, you need to override the variable for it's default color. I.e. the badges in the example below are normally red, thus the `--label-badge-red` variable is set.
+Or you could use the vscode devcontainer and run the task "`Run hass`".
 
-```yaml
-badges:
-  - entity: sun.sun
-    name: Original
-  - entity: sun.sun
-    style: |
-      :host {
-        --label-badge-red: purple;
-      }
-    name: Purple
-  - entity: sun.sun
-    name: Teal
-    style: |
-      :host {
-        --label-badge-red: teal;
-      }
-  - entity: sun.sun
-    name: Dashed
-    style:
-      ha-state-label-badge:
-        $:
-          ha-label-badge:
-            $: |
-              .label-badge {
-                border-style: dashed !important;
-              }
-```
-![badges](https://user-images.githubusercontent.com/1299821/71958861-9da5f580-31f1-11ea-8c70-b1d6b3a69f9b.png)
+## Themes
 
-## Templating
-Jinja templates have access to a few special variables. Those are:
+For instructions on how to develop a card-mod theme, see [README-themes.md](README-themes.md).
 
-- `config` - an object containing the card, entity row or glance button configuration
-- `user` - the username of the currently logged in user
-- `browser` - the deviceID of the current browser (see [browser_mod](https://github.com/thomasloven/hass-browser_mod)).
-- `hash` - the hash part of the current URL.
+## Development
 
-## Advanced usage
-
-When exploring the cards using the element inspector, you might run into something called a `shadow-root` and notice that you can't apply styles to anything inside that.
-
-In this case, you can make `style:` a dictionary instead of a string, where each key is a [`querySelector` string](https://developer.mozilla.org/en-US/docs/Web/API/Document/querySelector) and it's value styles to apply to it - *recursively*. A key of `$` means go into a `shadow-root` and a key of `.` the current element.
-
-This is not for the faint of heart.
-
-For some extra help, add `debug_cardmod: true` to the card config, and the steps taken to apply the styling will be printed in the browser console. It can be removed later.
-
-**Example**:
-Change some things in an `alarm-panel` card.
-
-```yaml
-type: alarm-panel
-card_icon: mdi:bell
-name: Alarm Panel
-debug_cardmod: true
-style:
-  .: |
-    ha-card {
-      --mdc-theme-primary: red;
-    }
-  "#keypad mwc-button":
-    $: |
-      :host {
-        background: blue;
-      }
-      button {
-        font-size: 24px !important;
-      }
-  "#keypad mwc-button:nth-of-type(12)":
-    $: |
-      button {
-        font-size: 16px !important;
-        --mdc-theme-primary: green;
-      }
-entity: alarm_control_panel.alarm
-```
-
-![advanced](https://user-images.githubusercontent.com/1299821/59151780-59732c80-8a39-11e9-9f19-34d3e0dbd8e9.png)
-
-## Mod-card
-
-** IMPORTANT: *** `mod-card` is a *workaround* for the *very few* cases where normal usage of card-mod does not work.
-I *cannot* stress this enough (apparently). If you every find yourself typing `type: custom:mod-card`, stop, go back, read this readme all the way through **again**, and realized that in approximately 10 out of 10 cases, you should NOT use `mod-card`.
-
-There are some cards where card-mod just won't work.
-Those cards often are not really *cards* at all, but change how other cards work. Examples include: `conditional`, `entity-filter`, `horizontal-stack` and `vertical-stack` as well as some custom cards, like `layout-card`, `auto-entities` and `state-switch` among others.
-
-For those cases, a special `mod-card` is provided as a **workaround**:
-
-```yaml
-type: custom:mod-card
-style: |
-  ha-card {
-    border: 1px solid green;
-  }
-card:
-  type: vertical-stack
-  cards:
-    - type: light
-      entity: light.bed_light
-    - type: light
-      entity: light.kitchen_lights
-```
-![mod-card](https://user-images.githubusercontent.com/1299821/68621707-b71c1100-04d0-11ea-8473-965dbd77b762.png)
-
-> Note: mod-card sets it's own `background` to `transparent`. That means, `--ha-card-background` will have no effect on mod-card itself. Instead, you have to modify the `background` property directly.
-
-Mod-card also allows you to manually specify a `cardHeight` of a card. This can be used to slightly modify the behavior of the layout engine of lovelace. See [this description](https://github.com/thomasloven/lovelace-layout-card#auto-layout) for details.
-The cardHeight is set with the `report_size:` option:
-
-```yaml
-type: custom:mod-card
-report_size: 5
-card:
-  ... etc ...
-```
-
-
-# FAQ
-
-### How do I convert my old card-modder configuration to card-mod?
-For cards, you just have to wrap everything in `ha-card {}` and format it as CSS.
-
-And don't forget to *remove* (not replace with anything else) `card-modder`.
-
-So, you go from:
-```yaml
-type: custom:card-modder
-card:
-  type: entities
-  entities:
-    - light.bed_light
-style:
-  "--ha-card-background": rgba(200, 0, 0, 0.5)
-  color: white
-```
-
-to
-```yaml
-type: entities
-entities:
-  - light.bed_light
-style: |
-  ha-card {
-    --ha-card-background: rgba(200, 0, 0, 0.5);
-    color: white
-  }
-```
-
-For rows in an entities card, you replace `ha-card` with `:host` as described above.
+For adding card-mods styling powers to your custom card, see [README-developers.md](README-developers.md).
 
 ---
+
 <a href="https://www.buymeacoffee.com/uqD6KHCdJ" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/white_img.png" alt="Buy Me A Coffee" style="height: auto !important;width: auto !important;" ></a>

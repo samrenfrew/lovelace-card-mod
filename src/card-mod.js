@@ -1,202 +1,145 @@
-import { LitElement, html } from "card-tools/src/lit-element";
-import { subscribeRenderTemplate, hasTemplate } from "card-tools/src/templates";
-import { hass } from "card-tools/src/hass";
-import { yaml2json } from "card-tools/src/yaml";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+import { LitElement, html, property } from "lit-element";
+import { bind_template, unbind_template } from "./templates";
+import { hasTemplate } from "card-tools/src/templates";
+import pjson from "../package.json";
 import { selectTree } from "card-tools/src/helpers";
-
-const EMPTY_TEMPLATE = {template: "", variables: {}, entity_ids: []};
-
-export const applyToElement = async (el, type, template, variables, entity_ids, shadow=true) => {
-  if(el.localName.includes("-"))
-    await customElements.whenDefined(el.localName);
-  if(el.updateComplete)
-    await el.updateComplete;
-
-  if(el.modElement)
-    return applyToElement(el.modElement, type, template, variables, entity_ids, shadow);
-
-  el._cardMod = el._cardMod || document.createElement("card-mod");
-  const target = shadow ? (el.shadowRoot || el) : el;
-  target.appendChild(el._cardMod);
-  if(el.updateComplete)
-    await el.updateComplete;
-  el._cardMod.type = type;
-  el._cardMod.template = {
-    template,
-    variables,
-    entity_ids,
-  };
-}
-
-class CardMod extends LitElement {
-
-  static get properties() {
-    return {
-      _renderedStyles: {},
-      _renderer: {},
+import { applyToElement, compare_deep, get_theme, merge_deep, parentElement, } from "./helpers";
+export class CardMod extends LitElement {
+    constructor() {
+        super();
+        this._rendered_styles = "";
+        this._styleChildren = new Set();
+        this._observer = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                if (m.target.localName === "card-mod")
+                    return;
+                let stop = true;
+                if (m.addedNodes.length)
+                    m.addedNodes.forEach((n) => {
+                        if (n.localName !== "card-mod")
+                            stop = false;
+                    });
+                if (stop)
+                    return;
+                stop = true;
+                if (m.removedNodes.length)
+                    m.removedNodes.forEach((n) => {
+                        if (n.localName !== "card-mod")
+                            stop = false;
+                    });
+                if (stop)
+                    return;
+            }
+            this.refresh();
+        });
+        document.addEventListener("cm_update", () => {
+            this.refresh();
+        });
     }
-  }
-
-  static get applyToElement() { return applyToElement; }
-
-  constructor() {
-    super();
-    document.querySelector("home-assistant").addEventListener("settheme", () => {this._setTemplate(this._data)});
-  }
-
-  connectedCallback() {
-    super.connectedCallback();
-    this.template = this._data;
-    this.setAttribute("slot", "none");
-  }
-
-  async getTheme() {
-    if(!this.type) return null;
-    let el = this.parentElement ? this.parentElement : this;
-    const theme = window.getComputedStyle(el).getPropertyValue("--card-mod-theme");
-
-    const themes = hass().themes.themes;
-    if(!themes[theme]) return null;
-    if(themes[theme][`card-mod-${this.type}-yaml`])
-      return await yaml2json(themes[theme][`card-mod-${this.type}-yaml`])
-    if(themes[theme][`card-mod-${this.type}`])
-      return themes[theme][`card-mod-${this.type}`]
-    return null;
-  }
-
-  set template(data) {
-    if(!data) return;
-    this._data = JSON.parse(JSON.stringify(data));
-
-    this.themeApplied = this._setTemplate(this._data);
-  }
-
-  async _setTemplate(data) {
-    if(!this._parent) {
-      data.theme_template = await this.getTheme();
-      if(typeof(data.template) === "string") {
-        data.template = {".": data.template};
-      }
-      if(typeof(data.theme_template) === "string") {
-        data.theme_template = {".": data.theme_template};
-      }
+    static get applyToElement() {
+        return applyToElement;
     }
-
-    // if(data.template && JSON.stringify(data.template).includes("config.entity") && !data.entity_ids) {
-    //   if(data.variables.config && data.variables.config.entity)
-    //     data.entity_ids = [data.variables.config.entity]
-    // }
-
-    await this.setStyle(data);
-  }
-
-  async unStyle() {
-    this._styledChildren = this._styledChildren || new Set();
-    for(const c of this._styledChildren) {
-      c.template = EMPTY_TEMPLATE;
+    connectedCallback() {
+        super.connectedCallback();
+        this._connect();
+        this.setAttribute("slot", "none");
     }
-  }
-
-  _mergeDeep(target, source) {
-    const isObject = (i) => {
-      return (i && typeof i === "object" && !Array.isArray(i));
-    };
-    if (isObject(target) && isObject(source)) {
-      for (const key in source) {
-        if (isObject(source[key])) {
-          if(!target[key]) Object.assign(target, { [key]: {} });
-          if(typeof(target[key]) === "string")
-            target[key] = {".": target[key]};
-          this._mergeDeep(target[key], source[key]);
-        } else {
-          if(target[key])
-            target[key] = source[key] + target[key];
-          else
-            target[key] = source[key];
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        this._disconnect();
+    }
+    set styles(stl) {
+        if (compare_deep(stl, this._input_styles))
+            return;
+        this._input_styles = stl;
+        this._connect();
+    }
+    get styles() {
+        return this._styles;
+    }
+    refresh() {
+        this._connect();
+    }
+    async _connect() {
+        const stl = this._input_styles;
+        // Always work with yaml styles
+        let styles = JSON.parse(JSON.stringify(stl || {}));
+        if (typeof styles === "string")
+            styles = { ".": styles };
+        // Merge card_mod styles with theme styles
+        const theme_styles = await get_theme(this);
+        merge_deep(styles, theme_styles);
+        const styleChildren = new Set();
+        let thisStyle;
+        const parent = this.parentElement || this.parentNode;
+        if (!styles["."])
+            thisStyle = "";
+        for (const [key, value] of Object.entries(styles)) {
+            if (key === ".") {
+                thisStyle = value;
+            }
+            else {
+                const elements = await selectTree(parent, key, true);
+                if (!elements)
+                    continue;
+                for (const el of elements) {
+                    if (el) {
+                        const child = await applyToElement(el, `${this.type}-child`, value, this.variables, null, false);
+                        child.refresh();
+                        styleChildren.add(child);
+                    }
+                }
+            }
         }
-      }
-    }
-    return target;
-  }
-
-  async setStyle(data) {
-
-    let { template, theme_template, variables, entity_ids } = data;
-
-    await this.unStyle();
-
-    if(!template) template = {};
-    template = JSON.parse(JSON.stringify(template));
-    this._mergeDeep(template, theme_template);
-
-    if(typeof template === "string") {
-      this._renderedStyles = template;
-      if(this._renderer) {
-        try {
-          await this._renderer();
-        } catch(err) {
-          if(!err.code || err.code !== "not_found")
-            throw(err);
+        for (const oldCh of this._styleChildren) {
+            if (!styleChildren.has(oldCh)) {
+                if (oldCh)
+                    oldCh.styles = "";
+            }
         }
-        this._renderer = undefined;
-      }
-
-      if(hasTemplate(template)) {
-        this._renderer = await subscribeRenderTemplate(
-          null,
-          (res) => {
-            this._renderedStyles = res;
-          },
-          { template, variables}
-        )
-      }
-      return;
-    }
-
-    await this.updateComplete;
-    const parent = this.parentElement || this.parentNode;
-    if(!parent) return {template: "", variable, entity_ids};
-    if(parent.updateComplete) await parent.updateComplete;
-    for(const k of Object.keys(template)) {
-      let next = [];
-      if(k === ".") {
-        this.setStyle({template: template[k], variables, entity_ids});
-        continue;
-      } else {
-        next = await selectTree(parent, k, true);
-      }
-      if(!next.length) continue;
-      for(const el of next) {
-        if(!el) continue;
-        let styleEl = el.querySelector(":scope > card-mod");
-        if(!styleEl || styleEl._parent !== (this._parent || this)) {
-          styleEl = document.createElement("card-mod");
-          this._styledChildren.add(styleEl);
-          styleEl._parent = (this._parent || this);
+        this._styleChildren = styleChildren;
+        if (this._styles === thisStyle)
+            return;
+        this._styles = thisStyle;
+        if (this._styles && hasTemplate(this._styles)) {
+            this._renderer = this._renderer || this._style_rendered.bind(this);
+            bind_template(this._renderer, this._styles, this.variables);
         }
-        styleEl.template = {template: template[k], variables, entity_ids};
-        el.appendChild(styleEl);
-        await styleEl.themeApplied;
-      }
+        else {
+            this._style_rendered(this._styles || "");
+        }
+        this._observer.observe(parentElement(this), { childList: true });
     }
-
-  }
-
-  createRenderRoot() { return this; }
-  render() {
-    return html`
+    async _disconnect() {
+        this._observer.disconnect();
+        this._styles = "";
+        await unbind_template(this._renderer);
+    }
+    _style_rendered(result) {
+        this._rendered_styles = result;
+        this.dispatchEvent(new Event("card-mod-update"));
+    }
+    createRenderRoot() {
+        return this;
+    }
+    render() {
+        return html `
       <style>
-        ${this._renderedStyles}
+        ${this._rendered_styles}
       </style>
     `;
-  }
-
+    }
 }
-
-if(!customElements.get("card-mod")) {
-  customElements.define('card-mod', CardMod);
-  const pjson = require('../package.json');
-  console.info(`%cCARD-MOD ${pjson.version} IS INSTALLED`,
-  "color: green; font-weight: bold",
-  "");
+__decorate([
+    property()
+], CardMod.prototype, "_rendered_styles", void 0);
+if (!customElements.get("card-mod")) {
+    customElements.define("card-mod", CardMod);
+    console.info(`%cCARD-MOD ${pjson.version} IS INSTALLED`, "color: green; font-weight: bold", "");
 }

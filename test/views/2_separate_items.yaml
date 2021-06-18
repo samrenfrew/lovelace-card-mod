@@ -1,12 +1,14 @@
 x-anchors:
   desc: &desc
     type: markdown
-    style: |
-      code {
-        font-size: 8pt;
-        line-height: normal;
-        white-space: pre-wrap;
-        }
+    card_mod:
+      style:
+        ha-markdown$: |
+          code {
+            font-size: 8pt !important;
+            line-height: normal;
+            white-space: pre-wrap;
+          }
 #
 # Styling individual items
 #
@@ -25,39 +27,45 @@ cards:
           show_header_toggle: false
           entities:
             - entity: light.bed_light
-              style: |
-                :host {
-                  color: red;
-                }
+              card_mod:
+                style: |
+                  :host {
+                    color: red;
+                  }
             - entity: light.ceiling_lights
-              style: |
-                :host {
-                  color: green;
-                }
+              card_mod:
+                style: |
+                  :host {
+                    color: green;
+                  }
             - entity: light.kitchen_lights
-              style: |
-                :host {
-                  color: blue;
-                }
+              card_mod:
+                style: |
+                  :host {
+                    color: blue;
+                  }
           ```
       - type: entities
         show_header_toggle: false
         entities:
           - entity: light.bed_light
-            style: |
-              :host {
-                color: red;
-              }
+            card_mod:
+              style: |
+                :host {
+                  color: red;
+                }
           - entity: light.ceiling_lights
-            style: |
-              :host {
-                color: green;
-              }
+            card_mod:
+              style: |
+                :host {
+                  color: green;
+                }
           - entity: light.kitchen_lights
-            style: |
-              :host {
-                color: blue;
-              }
+            card_mod:
+              style: |
+                :host {
+                  color: blue;
+                }
   - type: vertical-stack
     cards:
       - <<: *desc
@@ -70,35 +78,76 @@ cards:
           type: glance
           entities:
             - entity: light.bed_light
-              style: |
-                :host {
-                  color: red;
-                }
+              card_mod:
+                style: |
+                  :host {
+                    color: red;
+                  }
             - entity: light.ceiling_lights
-              style: |
-                :host {
-                  color: green;
-                }
+              card_mod:
+                style: |
+                  :host {
+                    color: green;
+                  }
             - entity: light.kitchen_lights
-              style: |
-                :host {
-                  color: blue;
-                }
+              card_mod:
+                style: |
+                  :host {
+                    color: blue;
+                  }
           ```
       - type: glance
         entities:
           - entity: light.bed_light
-            style: |
-              :host {
-                color: red;
-              }
+            card_mod:
+              style: |
+                :host {
+                  color: red;
+                }
           - entity: light.ceiling_lights
-            style: |
-              :host {
-                color: green;
-              }
+            card_mod:
+              style: |
+                :host {
+                  color: green;
+                }
           - entity: light.kitchen_lights
-            style: |
-              :host {
-                color: blue;
-              }
+            card_mod:
+              style: |
+                :host {
+                  color: blue;
+                }
+
+  - type: vertical-stack
+    cards:
+      - <<: *desc
+        content: |
+          ## 3: Styling picture-element elements
+          Red state label
+          ```
+          type: picture-elements
+          image: https://placekitten.com/g/600/400
+          elements:
+            - type: state-label
+              entity: light.bed_light
+              style:
+                top: 50%
+                left: 50%
+              card_mod:
+                style: |
+                  :host {
+                    color: Red;
+                  }
+          ```
+      - type: picture-elements
+        image: https://placekitten.com/g/600/400
+        elements:
+          - type: state-label
+            entity: light.bed_light
+            style:
+              top: 50%
+              left: 50%
+            card_mod:
+              style: |
+                :host {
+                  color: Red;
+                }

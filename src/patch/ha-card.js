@@ -1,50 +1,55 @@
-import {fireEvent} from "card-tools/src/event.js";
-import { applyToElement } from "../card-mod";
-
-customElements.whenDefined('ha-card').then(() => {
-  const HaCard = customElements.get('ha-card');
-  if(HaCard.prototype.cardmod_patched) return;
-  HaCard.prototype.cardmod_patched = true;
-
-  const findConfig = function(node) {
-    if(node.config)
-      return node.config;
-    if(node._config)
-      return node._config;
-    if(node.host)
-      return findConfig(node.host);
-    if(node.parentElement)
-      return findConfig(node.parentElement);
-    if(node.parentNode)
-      return findConfig(node.parentNode);
-    return null;
-  };
-
-
-  const oldFirstUpdated = HaCard.prototype.firstUpdated;
-  HaCard.prototype.firstUpdated = function(changedProperties) {
-    if(oldFirstUpdated) oldFirstUpdated.bind(this)(changedProperties);
-    // Move the header inside the slot instead of in the shadowDOM
-    // makes it easier to style it consistently
-    const header = this.shadowRoot.querySelector(".card-header");
-    if(header)
-    {
-      this.insertBefore(header, this.children[0]);
-    }
-
-    const config = findConfig(this);
-
-    if(!config) return;
-
-    if(config.class)
-      this.classList.add(config.class);
-    if(config.type)
-      this.classList.add(`type-${config.type.replace(":","-")}`);
-
-    const apply = () => applyToElement(this, "card", config.style, {config}, config.entity_ids, false);
-
-    apply();
-  }
-
-  fireEvent('ll-rebuild', {});
+import { applyToElement, findConfig } from "../helpers";
+customElements.whenDefined("ha-card").then(() => {
+    const HaCard = customElements.get("ha-card");
+    if (HaCard.prototype.cardmod_patched)
+        return;
+    HaCard.prototype.cardmod_patched = true;
+    const _firstUpdated = HaCard.prototype.firstUpdated;
+    HaCard.prototype.firstUpdated = function (changedProperties) {
+        var _a, _b;
+        _firstUpdated === null || _firstUpdated === void 0 ? void 0 : _firstUpdated.bind(this)(changedProperties);
+        // Move the header inside the slot instead of in the shadowDOM
+        // This makes it easier to style it consistently
+        const header = this.shadowRoot.querySelector(".card-header");
+        if (header) {
+            this.insertBefore(header, this.children[0]);
+        }
+        const config = findConfig(this);
+        if ((_a = config === null || config === void 0 ? void 0 : config.card_mod) === null || _a === void 0 ? void 0 : _a.class)
+            this.classList.add(config.card_mod.class);
+        if (config === null || config === void 0 ? void 0 : config.type)
+            this.classList.add(`type-${config.type.replace(":", "-")}`);
+        applyToElement(this, "card", ((_b = config === null || config === void 0 ? void 0 : config.card_mod) === null || _b === void 0 ? void 0 : _b.style) || (config === null || config === void 0 ? void 0 : config.style) || "", { config }, null, false).then((cardMod) => {
+            var _a;
+            const pn = (_a = this.parentNode) === null || _a === void 0 ? void 0 : _a.host;
+            if (!pn)
+                return;
+            if (pn.setConfig && !pn.setConfig.cm_patched) {
+                // Patch the setConfig function to get live updates in GUI editor
+                const _setConfig = pn.setConfig;
+                pn.setConfig = function (config) {
+                    var _a;
+                    _setConfig.bind(this)(config);
+                    cardMod.variables = { config };
+                    cardMod.styles = ((_a = config.card_mod) === null || _a === void 0 ? void 0 : _a.style) || {};
+                };
+                pn.setConfig.cm_patched = true;
+            }
+            if (pn.update && !pn.update.cm_patched) {
+                const _update = pn.update;
+                pn.update = function (changedProperties) {
+                    _update.bind(this)(changedProperties);
+                    cardMod.refresh();
+                    this.updateComplete.then(() => {
+                        cardMod.refresh();
+                    });
+                };
+                pn.update.cm_patched = true;
+            }
+            // Try to catch even very slowly loading cards
+            window.setTimeout(() => cardMod.refresh(), 100);
+            window.setTimeout(() => cardMod.refresh(), 500);
+            window.setTimeout(() => cardMod.refresh(), 1000);
+        });
+    };
 });

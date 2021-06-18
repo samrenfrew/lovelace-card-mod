@@ -1,30 +1,16 @@
-import {fireEvent} from "card-tools/src/event.js";
-import { applyToElement } from "../card-mod";
-
+import { selectTree } from "card-tools/src/helpers";
+import { applyToElement } from "../helpers";
 customElements.whenDefined("hui-root").then(() => {
-  const huiRoot = customElements.get("hui-root");
-  if(huiRoot.prototype.cardmod_patched) return;
-  huiRoot.prototype.cardmod_patched = true;
-
-  const oldFirstUpdated = huiRoot.prototype.firstUpdated;
-  huiRoot.prototype.firstUpdated = async function(changedProperties) {
-    if(oldFirstUpdated) oldFirstUpdated.bind(this)(changedProperties);
-    const apply = () => {applyToElement(this, "root", "", {}, [])};
-
-    apply();
-  };
-
-  fireEvent("ll-rebuild", {});
-  let root = document.querySelector("home-assistant");
-  root = root && root.shadowRoot;
-  root = root && root.querySelector("home-assistant-main");
-  root = root && root.shadowRoot;
-  root = root && root.querySelector("app-drawer-layout partial-panel-resolver");
-
-  root = root && root.querySelector("ha-panel-lovelace");
-  root = root && root.shadowRoot;
-  root = root && root.querySelector("hui-root");
-  if(root)
-    root.firstUpdated();
-
+    const HuiRoot = customElements.get("hui-root");
+    if (HuiRoot.prototype.cardmod_patched)
+        return;
+    HuiRoot.prototype.cardmod_patched = true;
+    const _firstUpdated = HuiRoot.prototype.firstUpdated;
+    HuiRoot.prototype.firstUpdated = async function (changedProperties) {
+        _firstUpdated === null || _firstUpdated === void 0 ? void 0 : _firstUpdated.bind(this)(changedProperties);
+        applyToElement(this, "root");
+    };
+    selectTree(document, "home-assistant$home-assistant-main$app-drawer-layout partial-panel-resolver ha-panel-lovelace$hui-root", false).then((root) => {
+        root === null || root === void 0 ? void 0 : root.firstUpdated();
+    });
 });
